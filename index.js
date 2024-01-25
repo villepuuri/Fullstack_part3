@@ -72,70 +72,47 @@ app.delete('/api/persons/:id', (request, response) => {
 })
 
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
     console.log('Posting a person')
     const body = request.body
 
-    if (body.name === undefined) {
-        return response.status(400).json({
-            error: "Name is missing"
-        })
-    }
-    else if (body.number === undefined) {
-        return response.status(400).json({
-            error: "Number is missing"
-        })
-    }
-    else {
-        // Add a new number
-        const newPerson = Person({
-            name: body.name,
-            number: body.number,
-        })
-        console.log("Adding a person", newPerson)
-        newPerson.save().then(savedPerson => {
-            response.json(savedPerson)
-        })
-    }
+    const newPerson = Person({
+        name: body.name,
+        number: body.number,
+    })
+    console.log("Adding a person", newPerson)
+    newPerson.save().then(savedPerson => {
+        response.json(savedPerson)
+    })
+    .catch(error => next(error))
+
 })
 
 app.put('/api/persons/:id', (request, response, next) => {
     console.log('Updating a person')
     const body = request.body
 
-    if (body.name === undefined) {
-        return response.status(400).json({
-            error: "Name is missing"
+    Person.findByIdAndUpdate(
+        request.params.id,
+        { number: body.number },
+        { new: true, runValidators: true, context: 'query'})
+        .then(result => {
+            console.log('Result from updating: ', result)
+            response.json(result)
         })
-    }
-    else if (body.number === undefined) {
-        return response.status(400).json({
-            error: "Number is missing"
-        })
-    }
-    else {
-        Person.findByIdAndUpdate(
-            request.params.id,
-        )
-        Person.findByIdAndUpdate(
-            request.params.id,
-            { number: body.number })
-            .then(result => {
-                console.log('Result from updating: ', result)
-                response.json(result)
-            })
-            .catch(error => next(error))
-    }
+        .catch(error => next(error))
+
 })
 
 
 const errorHandler = (error, request, response, next) => {
+    console.log(' *** Handling the error *** ')
     console.log(error)
     if (error.name === 'CastError') {
-        response.status(400).send({ error: 'malformatted id' })
+        return response.status(400).send({ error: 'malformatted id' })
     }
-    else {
-        response.status(400).end()
+    else if (error.name === 'ValidationError') {
+        return response.status(400).json({ error: error.message })
     }
     next(error)
 }
